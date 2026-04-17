@@ -1,21 +1,8 @@
 import type { Metadata } from "next";
-import { Sora, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import AppShell from "@/components/layout/AppShell";
 import GoogleAuthProvider from "@/components/GoogleAuthProvider";
-
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const jetbrains = JetBrains_Mono({
-  variable: "--font-jetbrains",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "2ASK — AI Finance Agent",
@@ -28,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sora.variable} ${jetbrains.variable} h-full`}>
+    <html lang="en" className="h-full">
       <body className="min-h-full antialiased" style={{ background: '#0A0F1E', color: '#F0F4FF' }}>
         <GoogleAuthProvider>
           <AppShell>

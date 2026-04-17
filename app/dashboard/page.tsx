@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/schema';
 import { getRecentTransactions, getCategoryTotals, getMonthlyTotals, computeHealthScore } from '@/lib/db/transactions';
-import type { Transaction, HealthScore, TaxSummary, Insight, TransactionCategory } from '@/lib/types';
+import type { HealthScore, TaxSummary, Insight } from '@/lib/types';
 
 import HealthScoreRing from '@/components/dashboard/HealthScoreRing';
 import CashFlowChart from '@/components/dashboard/CashFlowChart';
@@ -106,7 +106,6 @@ export default function DashboardPage() {
   const [healthScore, setHealthScore] = useState<HealthScore | null>(null);
   const [categoryTotals, setCategoryTotals] = useState<Record<string, number>>({});
   const [monthlyTotals, setMonthlyTotals] = useState<{ monthYear: string; income: number; expenses: number }[]>([]);
-  const [insights, setInsights] = useState<Insight[]>([]);
 
   const recentTxs = useLiveQuery(() => getRecentTransactions(10), []);
   const taxSummaries = useLiveQuery(() => db.taxSummaries.toArray(), []);
@@ -125,11 +124,13 @@ export default function DashboardPage() {
     loadDashboard();
   }, [recentTxs]);
 
-  useEffect(() => {
-    if (taxSummaries && categoryTotals) {
-      const count = recentTxs?.length || 0;
-      setInsights(generateDefaultInsights(categoryTotals, taxSummaries, count));
+  const insights: Insight[] = useMemo(() => {
+    if (!taxSummaries) {
+      return [];
     }
+
+    const count = recentTxs?.length || 0;
+    return generateDefaultInsights(categoryTotals, taxSummaries, count);
   }, [taxSummaries, categoryTotals, recentTxs]);
 
   if (!healthScore || !recentTxs || !taxSummaries) {

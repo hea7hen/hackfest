@@ -51,7 +51,11 @@ export default function TaxSnapshot({ summaries }: Props) {
           </h3>
           <p className="text-2xl font-black tracking-tight text-slate-900">Tax Passport</p>
         </div>
-        <button className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center hover:bg-white hover:shadow-md transition-all">
+        <button
+          type="button"
+          aria-label="Open tax passport"
+          className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center hover:bg-white hover:shadow-md transition-all"
+        >
           <ArrowRight weight="bold" size={16} className="text-slate-400" />
         </button>
       </div>

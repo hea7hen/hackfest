@@ -27,6 +27,16 @@ const typeIcons: Record<Insight['type'], any> = {
   month_summary: ChartLineUp,
 };
 
+/** Shown under severity — invoice/bill framing instead of raw enum names */
+const typeDisplay: Record<Insight['type'], string> = {
+  spending_spike: 'Bill run-rate',
+  tax_deadline: 'Tax calendar',
+  deductible_gap: 'Deductions',
+  low_savings: 'Collections vs bills',
+  data_gap: 'Document coverage',
+  month_summary: 'Period ledger',
+};
+
 interface Props {
   insights: Insight[];
 }
@@ -37,7 +47,7 @@ export default function InsightCards({ insights }: Props) {
   return (
     <div className="space-y-4">
       <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 px-1">
-        Strategic Intelligence
+        Invoice & bill intelligence
       </h3>
       <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 no-scrollbar">
         {insights.map((insight, i) => {
@@ -70,8 +80,8 @@ export default function InsightCards({ insights }: Props) {
                     <span className="text-[10px] font-bold uppercase tracking-widest leading-none mb-1" style={{ color: config.color }}>
                       {insight.severity}
                     </span>
-                    <span className="text-xs font-bold text-slate-400 capitalize">
-                      {insight.type.replace('_', ' ')}
+                    <span className="text-xs font-bold text-slate-400">
+                      {typeDisplay[insight.type]}
                     </span>
                   </div>
                 </div>

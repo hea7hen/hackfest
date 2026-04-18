@@ -9,8 +9,7 @@ import {
   Files, 
   CaretLeft, 
   CaretRight, 
-  Cpu,
-  Checks
+  Cpu
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';

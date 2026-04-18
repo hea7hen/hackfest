@@ -1,20 +1,38 @@
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+export const BACKEND_BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 type RequestOptions = RequestInit & {
   headers?: HeadersInit;
 };
 
 async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      ...options.headers,
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${BACKEND_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new Error(
+      `Could not reach the backend at ${BACKEND_BASE_URL}. Start the API server or update NEXT_PUBLIC_BACKEND_URL.`
+    );
+  }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || 'Request failed');
+    const error = await response
+      .json()
+      .catch(() => ({ detail: response.statusText || 'Request failed' }));
+    const detail =
+      typeof error?.detail === 'string' && error.detail.trim()
+        ? error.detail
+        : 'Request failed';
+
+    throw new Error(
+      `${detail} (${response.status}) while requesting ${path} from ${BACKEND_BASE_URL}`
+    );
   }
 
   return response.json() as Promise<T>;

@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Waypoints,
 } from 'lucide-react';
-import { getAuditEvents, getProofs } from '@/lib/api/client';
+import { BACKEND_BASE_URL, getAuditEvents, getProofs } from '@/lib/api/client';
 
 const whyItMatters = [
   'Uploads create visible event records instead of silent background parsing.',
@@ -20,16 +20,34 @@ const whyItMatters = [
 export default function AuditTrail() {
   const [events, setEvents] = useState([]);
   const [proofs, setProofs] = useState([]);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getAuditEvents(), getProofs()])
-      .then(([auditEvents, proofRecords]) => {
-        setEvents(auditEvents);
-        setProofs(proofRecords);
+    let active = true;
+
+    Promise.allSettled([getAuditEvents(), getProofs()])
+      .then(([auditEventsResult, proofRecordsResult]) => {
+        if (!active) return;
+
+        setEvents(auditEventsResult.status === 'fulfilled' ? auditEventsResult.value : []);
+        setProofs(proofRecordsResult.status === 'fulfilled' ? proofRecordsResult.value : []);
+
+        const failures = [auditEventsResult, proofRecordsResult]
+          .filter((result) => result.status === 'rejected')
+          .map((result) => result.reason?.message || 'Failed to load audit data.');
+
+        setError(failures[0] || '');
       })
-      .catch((err) => console.error(err.message))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (loading) {
@@ -44,6 +62,20 @@ export default function AuditTrail() {
 
   return (
     <div className="space-y-8 pb-16">
+      {error && (
+        <section className="rounded-[24px] border border-[color:rgba(167,53,45,0.16)] bg-[color:rgba(167,53,45,0.08)] px-5 py-4 text-[13px] leading-6 text-[var(--text-primary)]">
+          <p className="font-semibold uppercase tracking-[0.18em] text-[var(--accent-warn)]">
+            Audit backend warning
+          </p>
+          <p className="mt-2">
+            {error}
+          </p>
+          <p className="mt-1 text-[var(--text-secondary)]">
+            The audit page can still render any data that did load. Expected backend base URL: {BACKEND_BASE_URL}
+          </p>
+        </section>
+      )}
+
       <section className="grid gap-6 xl:grid-cols-[0.92fr,1.08fr]">
         <div className="apple-card p-8 md:p-10">
           <p className="eyebrow">Visible governance</p>

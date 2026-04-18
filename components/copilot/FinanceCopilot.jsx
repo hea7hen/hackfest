@@ -26,6 +26,7 @@ export default function AskCFO() {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(null);
   const [insights, setInsights] = useState([]);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const evidenceChunks = answer?.supporting_evidence
@@ -117,6 +118,12 @@ export default function AskCFO() {
                 </button>
               ))}
             </div>
+
+            {error && (
+              <p className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] font-medium text-rose-700">
+                {error}
+              </p>
+            )}
           </div>
 
           <div className="mt-auto p-6 flex items-center justify-between border-t border-[#F2F2F7]">

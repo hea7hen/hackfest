@@ -1,63 +1,87 @@
 'use client';
 
-import { GoogleLogo } from '@phosphor-icons/react';
-import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { ArrowClockwise, UploadSimple } from '@phosphor-icons/react';
+import { usePathname, useRouter } from 'next/navigation';
 
-interface TopBarProps {
-  modelLoading?: boolean;
-  modelProgress?: number;
-}
+const pageMeta: Record<string, { title: string; subtitle: string }> = {
+  dashboard: {
+    title: 'Financial command surface',
+    subtitle: 'A unified view of cash, invoices, deadlines, proof activity, and grounded AI.',
+  },
+  documents: {
+    title: 'Document intake',
+    subtitle: 'Upload source artifacts, parse them, and anchor them into the ledger.',
+  },
+  transactions: {
+    title: 'Ledger visibility',
+    subtitle: 'Inspect classified money movement and category pressure.',
+  },
+  invoices: {
+    title: 'Invoice workspace',
+    subtitle: 'Issue outgoing invoices and ingest incoming bills from one studio.',
+  },
+  planning: {
+    title: 'Operations calendar',
+    subtitle: 'Track tax rules, bill reminders, and invoice due dates in one place.',
+  },
+  'tax-passport': {
+    title: 'Tax passport',
+    subtitle: 'A tax-ready surface for deductions, GST/TDS posture, and review flags.',
+  },
+  chat: {
+    title: 'Finance Copilot',
+    subtitle: 'Grounded answers from your own invoices, documents, proofs, and transactions.',
+  },
+  audit: {
+    title: 'Trust timeline',
+    subtitle: 'Every material action stays visible and reviewable.',
+  },
+  verification: {
+    title: 'Verification portal',
+    subtitle: 'Recompute hashes, inspect anchors, and catch tampering fast.',
+  },
+  profile: {
+    title: 'Workspace identity',
+    subtitle: 'Define the operator, tax posture, and wallet behind the ledger.',
+  },
+};
 
-export default function TopBar({ modelLoading, modelProgress }: TopBarProps) {
+export default function TopBar() {
+  const pathname = usePathname();
   const router = useRouter();
+  const section = pathname.split('/')[1] || 'dashboard';
+  const meta = pageMeta[section] ?? pageMeta.dashboard;
 
   return (
-    <header className="sticky top-0 z-30 h-20 flex items-center justify-between px-10 bg-white/80 backdrop-blur-md border-b border-slate-100">
-      <div className="flex flex-col">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-none">
-          Strategic Insights
-        </h1>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-full">Personal Finance</span>
-          <span className="w-1 h-1 rounded-full bg-slate-300" />
-          <span className="text-[10px] font-mono text-slate-400 font-medium">L-OS v1.2.4</span>
+    <header className="sticky top-0 z-30 border-b border-[color:var(--border)] bg-[color:rgba(249,248,245,0.84)] backdrop-blur-xl">
+      <div className="mx-auto flex max-w-[1520px] items-center justify-between gap-4 px-5 py-5 md:px-8">
+        <div className="min-w-0">
+          <p className="eyebrow text-[color:var(--accent-gold)]">Unified Hackfest Workspace</p>
+          <h1 className="mt-2 font-display text-[1.45rem] font-extrabold tracking-tight text-[color:var(--text-primary)]">
+            {meta.title}
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-[color:var(--text-secondary)]">
+            {meta.subtitle}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/documents')}
+            className="hidden items-center gap-2 rounded-full border border-[color:var(--border)] bg-white px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--text-primary)] transition hover:border-[color:rgba(160,112,16,0.32)] md:inline-flex"
+          >
+            <UploadSimple size={14} />
+            Import
+          </button>
+          <button
+            onClick={() => router.refresh()}
+            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--text-secondary)] transition hover:text-[color:var(--text-primary)]"
+          >
+            <ArrowClockwise size={14} />
+            Refresh
+          </button>
         </div>
       </div>
-
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-2 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition-all font-bold text-slate-600 px-4"
-          onClick={() => router.push('/dashboard#gmail-json-extractor')}
-        >
-          <GoogleLogo weight="bold" size={16} className="text-blue-600" />
-          Import
-        </Button>
-        
-        <div className="w-10 h-10 rounded-full border border-slate-200 bg-white shadow-sm flex items-center justify-center overflow-hidden p-0.5">
-          <div className="w-full h-full rounded-full overflow-hidden bg-slate-100">
-            <img 
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Finance`} 
-              alt="Avatar" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      </div>
-
-      {modelLoading && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-slate-100 overflow-hidden">
-          <motion.div
-            className="h-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"
-            initial={{ width: 0 }}
-            animate={{ width: `${modelProgress || 0}%` }}
-            transition={{ type: "spring", stiffness: 50, damping: 20 }}
-          />
-        </div>
-      )}
     </header>
   );
 }

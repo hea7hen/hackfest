@@ -77,7 +77,7 @@ export default function InsightCards({ insights }: Props) {
                 </div>
 
                 <div className="flex-1">
-                  <p className="text-md font-black tracking-tight text-slate-900 mb-2 leading-tight">
+                  <p className="text-base font-black tracking-tight text-slate-900 mb-2 leading-tight">
                     {insight.headline}
                   </p>
                   <p className="text-xs font-medium leading-relaxed text-slate-500">

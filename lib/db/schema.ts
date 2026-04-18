@@ -11,7 +11,7 @@ export const db = new Dexie('2ask') as Dexie & {
 };
 
 db.version(1).stores({
-  transactions: 'id, monthYear, category, source, date, vendor, isTaxDeductible',
+  transactions: 'id, monthYear, category, source, date, vendor, isTaxDeductible, documentType',
   documents: 'id, source, processedAt, gmailMessageId',
   taxSummaries: 'monthYear',
   chatMessages: 'id, timestamp',

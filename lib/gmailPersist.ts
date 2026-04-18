@@ -60,6 +60,16 @@ export async function persistGmailPdfToDexie(params: {
   const monthYear = date.slice(0, 7);
   const category = guessCategory(f.vendorName);
   const taxType: TaxType = taxAmt > 0 ? 'GST' : 'none';
+  const invRaw =
+    f.invoiceNumber && f.invoiceNumber !== 'N/A' ? String(f.invoiceNumber).trim() : null;
+  const inv = invRaw
+    ? invRaw.toUpperCase().startsWith('INV')
+      ? invRaw
+      : `INV-${invRaw}`
+    : null;
+  const description = inv
+    ? `${inv} · ${subject} — ${filename}`.slice(0, 500)
+    : `${subject} — ${filename}`.slice(0, 500);
 
   const tx: Transaction = {
     id: `gmail-${messageId}-${attachmentId}`,
@@ -68,7 +78,7 @@ export async function persistGmailPdfToDexie(params: {
     vendor,
     date,
     category,
-    description: `${subject} — ${filename}`,
+    description,
     isTaxDeductible: category === 'business' || category === 'food',
     taxType,
     taxAmount: taxAmt > 0 ? taxAmt : null,

@@ -13,6 +13,7 @@ import CategoryBreakdown from '@/components/dashboard/CategoryBreakdown';
 import TaxSnapshot from '@/components/dashboard/TaxSnapshot';
 import InsightCards from '@/components/dashboard/InsightCards';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
+import InvoiceAnalysisReport from '@/components/dashboard/InvoiceAnalysisReport';
 import GmailExtractor from '@/components/GmailExtractor';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -28,14 +29,19 @@ function generateDefaultInsights(
   const totalExpenses = taxSummaries.reduce((s, t) => s + t.totalExpenses, 0);
   const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
 
-  if (categoryTotals['food'] > 3000) {
+  const billRelatedSpend =
+    (categoryTotals['business'] ?? 0) +
+    (categoryTotals['utilities'] ?? 0) +
+    (categoryTotals['shopping'] ?? 0);
+
+  if (billRelatedSpend > 8000) {
     insights.push({
-      id: 'insight-food-spike',
+      id: 'insight-bill-volume',
       type: 'spending_spike',
-      headline: 'Food spending is high',
-      detail: `You've spent \u20B9${categoryTotals['food']?.toLocaleString('en-IN')} on food. Consider meal planning to reduce costs.`,
+      headline: 'Vendor invoices & bill volume is high',
+      detail: `About \u20B9${billRelatedSpend.toLocaleString('en-IN')} across business invoices, utilities, and equipment bills in your ledger. Compare to client settlements and GST lines before the next payout.`,
       severity: 'warning',
-      actionLabel: 'View food expenses',
+      actionLabel: 'Review bill payments',
       createdAt: now.toISOString(),
     });
   }
@@ -63,14 +69,24 @@ function generateDefaultInsights(
     }
   }
 
-  if (savingsRate < 10 && totalIncome > 0) {
+  if (totalIncome > 0 && totalExpenses > totalIncome) {
     insights.push({
-      id: 'insight-low-savings',
+      id: 'insight-bills-exceed-collections',
       type: 'low_savings',
-      headline: savingsRate < 0 ? 'Spending exceeds income' : 'Low savings rate',
-      detail: `Your savings rate is ${savingsRate.toFixed(0)}%. Financial advisors recommend at least 20%.`,
-      severity: savingsRate < 0 ? 'critical' : 'warning',
-      actionLabel: 'Review expenses',
+      headline: 'Bill payments exceed invoice collections',
+      detail: `Recorded bills and vendor payouts (\u20B9${totalExpenses.toLocaleString('en-IN')}) are above credited invoice / client inflows (\u20B9${totalIncome.toLocaleString('en-IN')}). Often timing: retainers vs. SaaS renewals—match due dates to your AR.`,
+      severity: 'critical',
+      actionLabel: 'Reconcile invoices',
+      createdAt: now.toISOString(),
+    });
+  } else if (totalIncome > 0 && savingsRate < 10) {
+    insights.push({
+      id: 'insight-bill-cashflow-tight',
+      type: 'low_savings',
+      headline: 'Tight cashflow after bills',
+      detail: `After bills and vendor payments, only about ${savingsRate.toFixed(0)}% of invoice collections remain as net float. Watch upcoming GST / TDS lines and stagger tool renewals.`,
+      severity: 'warning',
+      actionLabel: 'Review bill payments',
       createdAt: now.toISOString(),
     });
   }
@@ -79,20 +95,21 @@ function generateDefaultInsights(
     insights.push({
       id: 'insight-data-gap',
       type: 'data_gap',
-      headline: 'Scan more documents',
-      detail: 'More data means better insights. Try scanning receipts, invoices, or syncing Gmail for automatic extraction.',
+      headline: 'Add more invoices & bills',
+      detail: 'Pull PDF tax invoices from Gmail or upload statements so bill payment vs. client settlement views stay accurate.',
       severity: 'info',
-      actionLabel: 'Scan now',
+      actionLabel: 'Import from Gmail',
       createdAt: now.toISOString(),
     });
   }
 
-  if (totalIncome > 0) {
+  if (totalIncome > 0 || totalExpenses > 0) {
+    const net = totalIncome - totalExpenses;
     insights.push({
-      id: 'insight-month-summary',
+      id: 'insight-invoice-bill-snapshot',
       type: 'month_summary',
-      headline: 'Monthly overview ready',
-      detail: `Income: \u20B9${totalIncome.toLocaleString('en-IN')} | Expenses: \u20B9${totalExpenses.toLocaleString('en-IN')} | Savings: ${savingsRate.toFixed(0)}%`,
+      headline: 'Invoice & bill payment snapshot',
+      detail: `Client credits / settlements: \u20B9${totalIncome.toLocaleString('en-IN')} · Bills & vendor payments: \u20B9${totalExpenses.toLocaleString('en-IN')} · Net after bills: \u20B9${net.toLocaleString('en-IN')}`,
       severity: 'info',
       actionLabel: null,
       createdAt: now.toISOString(),
@@ -195,6 +212,11 @@ export default function DashboardPage() {
               <TaxSnapshot summaries={taxSummaries} />
             </motion.div>
           </div>
+
+          {/* Invoice Analysis Report */}
+          <motion.div variants={item} className="lg:col-span-12">
+            <InvoiceAnalysisReport />
+          </motion.div>
         </div>
 
         <motion.div variants={item} className="scroll-mt-28">

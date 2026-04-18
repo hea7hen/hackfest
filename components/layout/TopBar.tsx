@@ -1,6 +1,6 @@
 'use client';
 
-import { GoogleLogo, Flask } from '@phosphor-icons/react';
+import { GoogleLogo } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';

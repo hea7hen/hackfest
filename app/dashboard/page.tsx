@@ -13,6 +13,7 @@ import CategoryBreakdown from '@/components/dashboard/CategoryBreakdown';
 import TaxSnapshot from '@/components/dashboard/TaxSnapshot';
 import InsightCards from '@/components/dashboard/InsightCards';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
+import GmailExtractor from '@/components/GmailExtractor';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function generateDefaultInsights(
@@ -195,6 +196,10 @@ export default function DashboardPage() {
             </motion.div>
           </div>
         </div>
+
+        <motion.div variants={item} className="scroll-mt-28">
+          <GmailExtractor />
+        </motion.div>
 
       </motion.div>
   );

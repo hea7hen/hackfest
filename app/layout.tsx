@@ -1,19 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { GeistSans, GeistMono } from "geist/font";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import AppShell from "@/components/layout/AppShell";
 import GoogleAuthProvider from "@/components/GoogleAuthProvider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "2ASK \u2014 AI Finance Agent",
@@ -27,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans bg-background text-foreground min-h-screen relative overflow-x-hidden content-stable selection:bg-blue-100 selection:text-blue-900`}>
+      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans bg-background text-foreground min-h-screen relative overflow-x-hidden content-stable selection:bg-blue-100 selection:text-blue-900`}>
         {/* Soft Structuralism Ambient Accents */}
         <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 blur-[120px]" />

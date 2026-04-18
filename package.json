@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "backend": "agent_knowledge/venv/bin/uvicorn main:app --app-dir agent_knowledge --reload --port 8000"
+    "backend": "uvicorn main:app --app-dir agent_knowledge --reload --port 8000",
+    "backend:venv": "agent_knowledge/venv/bin/uvicorn main:app --app-dir agent_knowledge --reload --port 8000"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",

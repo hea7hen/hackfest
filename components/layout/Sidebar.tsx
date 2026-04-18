@@ -2,15 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Camera, MessageCircle, FileText, ChevronLeft, ChevronRight, Cpu } from 'lucide-react';
+import { 
+  SquaresFour, 
+  Camera, 
+  ChatCircleText, 
+  Files, 
+  CaretLeft, 
+  CaretRight, 
+  Cpu
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: SquaresFour },
   { href: '/scan', label: 'Scan Document', icon: Camera },
-  { href: '/chat', label: 'Ask 2ASK', icon: MessageCircle },
-  { href: '/tax-passport', label: 'Tax Passport', icon: FileText },
+  { href: '/chat', label: 'Ask 2ASK', icon: ChatCircleText },
+  { href: '/tax-passport', label: 'Tax Passport', icon: Files },
 ];
 
 export default function Sidebar() {
@@ -19,37 +27,36 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300"
+      className="fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-500 bg-white border-r border-slate-100 shadow-[20px_0_40px_-20px_rgba(0,0,0,0.03)]"
       style={{
-        width: collapsed ? 60 : 240,
-        background: '#0D1224',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        width: collapsed ? 80 : 280,
       }}
     >
-      {/* Logo */}
-      <div className="flex items-center h-16 px-4 gap-3">
+      {/* Logo Section */}
+      <div className="flex items-center h-20 px-6 gap-3 pt-4">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
-          style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}
+          className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg shadow-blue-200"
+          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}
         >
           2A
         </div>
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {!collapsed && (
-            <motion.span
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 'auto' }}
-              exit={{ opacity: 0, width: 0 }}
-              className="font-semibold text-lg whitespace-nowrap overflow-hidden"
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="flex flex-col"
             >
-              2ASK
-            </motion.span>
+              <span className="font-bold text-xl tracking-tighter text-slate-900">2ASK</span>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-blue-600 font-semibold leading-none">Intelligence</span>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-4">
+      {/* Navigation */}
+      <nav className="flex-1 py-10 px-4 space-y-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -57,27 +64,32 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-colors relative group"
+              className="relative flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group overflow-hidden"
               style={{
-                background: isActive ? 'rgba(59,130,246,0.1)' : 'transparent',
-                color: isActive ? '#3B82F6' : '#8899AA',
+                color: isActive ? '#1D4ED8' : '#64748B',
               }}
             >
               {isActive && (
                 <motion.div
-                  layoutId="sidebar-indicator"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-                  style={{ background: '#3B82F6' }}
+                  layoutId="active-pill"
+                  className="absolute inset-0 bg-blue-50 border border-blue-100/50 rounded-2xl z-0"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
-              <Icon size={20} className="shrink-0" />
-              <AnimatePresence>
+              
+              <Icon 
+                weight={isActive ? "fill" : "light"} 
+                size={22} 
+                className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110 text-blue-600' : 'group-hover:scale-110 group-hover:text-slate-900'}`} 
+              />
+              
+              <AnimatePresence mode="wait">
                 {!collapsed && (
                   <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: 'auto' }}
-                    exit={{ opacity: 0, width: 0 }}
-                    className="text-sm font-medium whitespace-nowrap overflow-hidden"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                    className="relative z-10 text-sm font-semibold tracking-tight whitespace-nowrap"
                   >
                     {item.label}
                   </motion.span>
@@ -88,40 +100,32 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* AI Status Footer */}
-      <div className="p-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <div className="flex items-center gap-2">
-          <Cpu size={16} className="shrink-0" style={{ color: '#8899AA' }} />
-          <AnimatePresence>
+      {/* AI Status Card */}
+      <div className="p-6">
+        <div className={`bg-slate-50 border border-slate-100 rounded-3xl p-4 transition-all duration-500 ${collapsed ? 'px-2 items-center' : ''}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-white shadow-sm border border-slate-200 flex items-center justify-center text-blue-600 shrink-0">
+              <Cpu weight="duotone" size={20} />
+            </div>
             {!collapsed && (
-              <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="overflow-hidden whitespace-nowrap"
-              >
-                <p className="text-xs" style={{ color: '#8899AA' }}>AI: Gemma 2B</p>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-900 tracking-tight">Gemma 2B</span>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px]" style={{ color: '#10B981' }}>On-device</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
+                  <span className="text-[10px] font-semibold text-emerald-600">Active</span>
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      {/* Collapse Toggle */}
+      {/* Collapse Trigger */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-20 w-6 h-6 rounded-full flex items-center justify-center border"
-        style={{
-          background: '#131929',
-          borderColor: 'rgba(255,255,255,0.1)',
-          color: '#8899AA',
-        }}
+        className="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-white shadow-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:scale-110 transition-all z-50"
       >
-        {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        {collapsed ? <CaretRight weight="bold" size={14} /> : <CaretLeft weight="bold" size={14} />}
       </button>
     </aside>
   );

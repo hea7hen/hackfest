@@ -7,9 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sora);
-  --font-mono: var(--font-jetbrains);
-  --font-heading: var(--font-sora);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Noto Sans", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
+  --font-heading: var(--font-geist-sans);
+  
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -18,11 +19,13 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  
+  --color-chart-5: #FF4D4D;
+  --color-chart-4: #FADB14;
+  --color-chart-3: #13C2C2;
+  --color-chart-2: #52C41A;
+  --color-chart-1: #1890FF;
+  
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -39,56 +42,47 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-
-  --color-surface: #131929;
-  --color-surface-elevated: #1E2A3A;
-  --color-fin-positive: #10B981;
-  --color-fin-negative: #F43F5E;
-  --color-fin-warning: #F59E0B;
-  --color-fin-accent: #3B82F6;
-  --color-text-muted: #8899AA;
+  
+  /* Precision Radii */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 2.5rem;
 }
 
 :root {
-  --background: #0A0F1E;
-  --foreground: #F0F4FF;
-  --card: #131929;
-  --card-foreground: #F0F4FF;
-  --popover: #131929;
-  --popover-foreground: #F0F4FF;
-  --primary: #3B82F6;
+  --background: #F9FAFB;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #2563EB;
   --primary-foreground: #FFFFFF;
-  --secondary: #1E2A3A;
-  --secondary-foreground: #F0F4FF;
-  --muted: #1E2A3A;
-  --muted-foreground: #8899AA;
-  --accent: #1E2A3A;
-  --accent-foreground: #F0F4FF;
-  --destructive: #F43F5E;
-  --border: rgba(255,255,255,0.06);
-  --input: rgba(255,255,255,0.1);
-  --ring: #3B82F6;
-  --chart-1: #3B82F6;
-  --chart-2: #10B981;
-  --chart-3: #F59E0B;
-  --chart-4: #8B5CF6;
-  --chart-5: #F43F5E;
-  --radius: 0.75rem;
-  --sidebar: #0D1224;
-  --sidebar-foreground: #F0F4FF;
-  --sidebar-primary: #3B82F6;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --destructive: #EF4444;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #2563EB;
+  
+  /* Sidebar Light Theme */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #2563EB;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #1E2A3A;
-  --sidebar-accent-foreground: #F0F4FF;
-  --sidebar-border: rgba(255,255,255,0.06);
-  --sidebar-ring: #3B82F6;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #2563EB;
+  
+  --radius: 1rem;
 }
 
 @layer base {
@@ -96,34 +90,64 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-    background: #0A0F1E;
-    color: #F0F4FF;
-  }
-  html {
-    @apply font-sans;
+    @apply bg-background text-foreground antialiased;
+    letter-spacing: -0.011em;
   }
 }
 
-/* Scrollbar styling */
+@layer utilities {
+  .glass {
+    backdrop-filter: blur(16px);
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+
+  .glass-elevated {
+    backdrop-filter: blur(24px);
+    background-color: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  }
+
+  .bento-card {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 20px 40px -20px rgba(0, 0, 0, 0.05);
+    border-radius: 2rem;
+    padding: 2.5rem;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    transition-duration: 600ms;
+    
+    &:hover {
+      background-color: #FFFFFF;
+      border-color: rgba(0, 0, 0, 0.08);
+      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.08);
+      transform: translateY(-0.35rem);
+    }
+  }
+
+  .font-financial {
+    font-family: var(--font-geist-mono), monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom Scrollbar for Light Theme */
 ::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.2);
-}
-
-/* Financial number font */
-.font-financial {
-  font-family: var(--font-jetbrains), 'JetBrains Mono', monospace;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  @apply bg-slate-200 rounded-full hover:bg-slate-300;
 }

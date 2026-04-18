@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db/schema';
@@ -13,8 +14,6 @@ import TaxSnapshot from '@/components/dashboard/TaxSnapshot';
 import InsightCards from '@/components/dashboard/InsightCards';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
 import { Skeleton } from '@/components/ui/skeleton';
-import GoogleAuthProvider from '@/components/GoogleAuthProvider';
-import GmailExtractor from '@/components/GmailExtractor';
 
 function generateDefaultInsights(
   categoryTotals: Record<string, number>,
@@ -125,55 +124,78 @@ export default function DashboardPage() {
   }, [recentTxs]);
 
   const insights: Insight[] = useMemo(() => {
-    if (!taxSummaries) {
-      return [];
-    }
-
+    if (!taxSummaries) return [];
     const count = recentTxs?.length || 0;
     return generateDefaultInsights(categoryTotals, taxSummaries, count);
   }, [taxSummaries, categoryTotals, recentTxs]);
 
   if (!healthScore || !recentTxs || !taxSummaries) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-[320px] rounded-2xl" style={{ background: '#131929' }} />
-          <Skeleton className="h-[320px] rounded-2xl lg:col-span-2" style={{ background: '#131929' }} />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-[300px] rounded-2xl" style={{ background: '#131929' }} />
-          <Skeleton className="h-[300px] rounded-2xl" style={{ background: '#131929' }} />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
+        <Skeleton className="lg:col-span-12 h-[200px] rounded-3xl bg-slate-100/50" />
+        <Skeleton className="lg:col-span-4 h-[400px] rounded-3xl bg-slate-100/50" />
+        <Skeleton className="lg:col-span-8 h-[400px] rounded-3xl bg-slate-100/50" />
       </div>
     );
   }
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.3
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.8 } }
+  };
+
   return (
-    <GoogleAuthProvider>
-      <div className="space-y-6">
-        {/* Gmail Login UI */}
-        <GmailExtractor />
+    <motion.div 
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="space-y-8 pb-12"
+      >
+        {/* Intelligence Overlay (Full Width) */}
+        <motion.div variants={item}>
+          <InsightCards insights={insights} />
+        </motion.div>
 
-        {/* Insights Row */}
-        <InsightCards insights={insights} />
+        {/* Bento Grid 2.0 Content */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 auto-rows-[minmax(400px,auto)]">
+          
+          {/* Health Core - Compact Focus */}
+          <motion.div variants={item} className="lg:col-span-4 xl:col-span-3">
+            <HealthScoreRing healthScore={healthScore} />
+          </motion.div>
 
-        {/* Top Row: Health Score + Cash Flow */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <HealthScoreRing healthScore={healthScore} />
-          <div className="lg:col-span-2">
+          {/* Cash Flow - Main Visibility */}
+          <motion.div variants={item} className="lg:col-span-8 xl:col-span-9">
             <CashFlowChart data={monthlyTotals} />
+          </motion.div>
+
+          {/* Ledger - Detail View */}
+          <motion.div variants={item} className="lg:col-span-8">
+            <RecentTransactions transactions={recentTxs} />
+          </motion.div>
+
+          {/* Sub-Bento for Analytics */}
+          <div className="lg:col-span-4 grid grid-cols-1 gap-6">
+            <motion.div variants={item}>
+              <CategoryBreakdown data={categoryTotals} />
+            </motion.div>
+            <motion.div variants={item}>
+              <TaxSnapshot summaries={taxSummaries} />
+            </motion.div>
           </div>
         </div>
 
-        {/* Middle Row: Categories + Tax */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CategoryBreakdown data={categoryTotals} />
-          <TaxSnapshot summaries={taxSummaries} />
-        </div>
-
-        {/* Bottom: Recent Transactions */}
-        <RecentTransactions transactions={recentTxs} />
-      </div>
-    </GoogleAuthProvider>
+      </motion.div>
   );
 }

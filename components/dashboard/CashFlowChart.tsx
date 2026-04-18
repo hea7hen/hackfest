@@ -57,6 +57,17 @@ export default function CashFlowChart({ data }: Props) {
     name: formatMonth(d.monthYear),
   }));
 
+  if (chartData.length === 0) {
+    return (
+      <div className="bento-card h-[400px] flex flex-col items-center justify-center">
+        <div className="text-center">
+          <p className="text-sm font-bold text-slate-900 mb-2">No cash flow data yet</p>
+          <p className="text-xs text-slate-500">Add transactions to see your monthly cash flow analysis</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bento-card h-[400px]">
       <div className="flex items-center justify-between mb-8 px-2">

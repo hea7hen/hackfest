@@ -90,7 +90,7 @@ export default function TaxPassportPage() {
         {deductibles.length === 0 ? (
           <div className="rounded-3xl border-2 border-dashed border-slate-100 bg-white p-12 text-center shadow-inner">
             <p className="text-sm text-slate-900 font-bold">No deductible expenses found yet.</p>
-            <p className="text-xs text-slate-400 mt-1 font-medium">Upload invoices from Scan Document or extract PDFs from Gmail on the Dashboard.</p>
+            <p className="text-xs text-slate-400 mt-1 font-medium">Extract PDFs from Gmail on the Dashboard to populate your deductible ledger.</p>
           </div>
         ) : (
           <div className="space-y-3">

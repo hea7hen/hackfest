@@ -84,7 +84,16 @@ export async function analyzeReceipt(text: string, filename: string) {
     method: 'POST',
     body: formData,
   });
-  if (!res.ok) throw new Error(`/analyze-receipt failed: ${res.status}`);
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const j = (await res.json()) as { detail?: string };
+      if (typeof j?.detail === 'string') detail = ` — ${j.detail}`;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`/analyze-receipt failed: ${res.status}${detail}`);
+  }
   return res.json();
 }
 

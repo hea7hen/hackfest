@@ -13,6 +13,7 @@ import CategoryBreakdown from '@/components/dashboard/CategoryBreakdown';
 import TaxSnapshot from '@/components/dashboard/TaxSnapshot';
 import InsightCards from '@/components/dashboard/InsightCards';
 import RecentTransactions from '@/components/dashboard/RecentTransactions';
+import InvoiceAnalysisReport from '@/components/dashboard/InvoiceAnalysisReport';
 import GmailExtractor from '@/components/GmailExtractor';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -95,7 +96,7 @@ function generateDefaultInsights(
       id: 'insight-data-gap',
       type: 'data_gap',
       headline: 'Add more invoices & bills',
-      detail: 'Pull PDF tax invoices from Gmail, scan vendor bills, or upload statements so bill payment vs. client settlement views stay accurate.',
+      detail: 'Pull PDF tax invoices from Gmail or upload statements so bill payment vs. client settlement views stay accurate.',
       severity: 'info',
       actionLabel: 'Import from Gmail',
       createdAt: now.toISOString(),
@@ -211,6 +212,11 @@ export default function DashboardPage() {
               <TaxSnapshot summaries={taxSummaries} />
             </motion.div>
           </div>
+
+          {/* Invoice Analysis Report */}
+          <motion.div variants={item} className="lg:col-span-12">
+            <InvoiceAnalysisReport />
+          </motion.div>
         </div>
 
         <motion.div variants={item} className="scroll-mt-28">

@@ -35,7 +35,7 @@ export default function TopBar({ modelLoading, modelProgress }: TopBarProps) {
           variant="outline"
           size="sm"
           className="gap-2"
-          onClick={() => router.push('/dashboard')}
+          onClick={() => router.push('/dashboard#gmail-json-extractor')}
           style={{
             background: 'rgba(59,130,246,0.1)',
             borderColor: 'rgba(59,130,246,0.3)',

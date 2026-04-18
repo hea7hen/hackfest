@@ -15,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
-      <body className="min-h-full antialiased" style={{ background: '#0A0F1E', color: '#F0F4FF' }}>
+    <html lang="en" className="dark">
+      <body className="bg-[#0A0F1E] text-[#F0F4FF] min-h-screen">
         <GoogleAuthProvider>
           <AppShell>
             {children}

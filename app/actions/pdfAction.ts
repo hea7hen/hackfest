@@ -1,12 +1,8 @@
 "use server";
 
-import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+// Import implementation directly — `pdf-parse` main `index.js` runs a debug file read when
+// `!module.parent` (true under Next.js bundling), causing ENOENT for ./test/data/05-versions-space.pdf
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Failed to parse PDF";
@@ -80,52 +76,23 @@ function extractPdfFields(text: string): ParsedPdfFields {
   };
 }
 
-async function extractPdfTextWithPython(buffer: Buffer) {
-  const tempDir = await mkdtemp(join(tmpdir(), "gmail-pdf-"));
-  const pdfPath = join(tempDir, "attachment.pdf");
-
-  try {
-    await writeFile(pdfPath, buffer);
-
-    const pythonScript = [
-      "import json, sys",
-      "from pypdf import PdfReader",
-      "path = sys.argv[1]",
-      "reader = PdfReader(path)",
-      "pages = []",
-      "for page in reader.pages:",
-      "    pages.append(page.extract_text() or '')",
-      "print(json.dumps({'pageCount': len(reader.pages), 'text': '\\n\\n'.join(pages)}))",
-    ].join("\n");
-
-    const { stdout, stderr } = await execFileAsync("python3", ["-c", pythonScript, pdfPath], {
-      maxBuffer: 10 * 1024 * 1024,
-    });
-
-    if (stderr.trim()) {
-      throw new Error(stderr.trim());
-    }
-
-    const parsed = JSON.parse(stdout) as { pageCount: number; text: string };
-    return parsed;
-  } finally {
-    await rm(tempDir, { recursive: true, force: true });
-  }
-}
-
 export async function parseInvoicePdf(base64Data: string) {
   try {
     const base64 = base64Data.replace(/-/g, "+").replace(/_/g, "/");
     const buffer = Buffer.from(base64, "base64");
-    const extracted = await extractPdfTextWithPython(buffer);
+    
+    // Natively extract using the rock-solid pdf-parse library
+    // This avoids python subprocess issues and Next.js turbopack worker errors completely.
+    const extracted = await pdfParse(buffer);
     const text = extracted.text.trim();
+    
     const lines = text
       .split("\n")
-      .map((line) => line.trim())
+      .map((line: string) => line.trim())
       .filter(Boolean);
 
     const document: ParsedPdfDocument = {
-      pageCount: extracted.pageCount,
+      pageCount: extracted.numpages,
       fullText: text,
       lines,
       extractedFields: extractPdfFields(text),
@@ -144,3 +111,4 @@ export async function parseInvoicePdf(base64Data: string) {
     return { success: false, error: getErrorMessage(err) };
   }
 }
+

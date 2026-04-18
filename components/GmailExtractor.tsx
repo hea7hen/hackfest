@@ -2,8 +2,16 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
+import { toast } from "sonner";
 import { parseInvoicePdf } from "@/app/actions/pdfAction";
 import type { ParsedPdfDocument } from "@/app/actions/pdfAction";
+import { recomputeAllTaxSummaries } from "@/lib/db/tax-summary";
+import {
+  bestEffortUploadToChroma,
+  normalizeInvoiceDate,
+  persistGmailPdfToDexie,
+} from "@/lib/gmailPersist";
+import { db } from '@/lib/db/schema';
 
 type GmailHeader = {
   name?: string;
@@ -150,6 +158,17 @@ export default function GmailExtractor() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
+  const [persistedTransactions, setPersistedTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    // On mount, pull any Gmail-sourced transactions from Dexie
+    db.transactions
+      .where('source').equals('gmail')
+      .reverse()
+      .limit(20)
+      .toArray()
+      .then(setPersistedTransactions);
+  }, []);
 
   const jsonOutput = useMemo(() => JSON.stringify(documents, null, 2), [documents]);
   const allAttachments = useMemo(
@@ -262,6 +281,30 @@ export default function GmailExtractor() {
             receivedAt: getReceivedAt(detail.internalDate),
             attachments,
           });
+        }
+
+        let savedCount = 0;
+        for (const doc of extractedDocuments) {
+          for (const att of doc.attachments) {
+            try {
+              await persistGmailPdfToDexie({
+                messageId: doc.messageId,
+                attachmentId: att.attachmentId,
+                filename: att.filename,
+                subject: doc.subject,
+                parsed: att.parsedJson,
+              });
+              const d = normalizeInvoiceDate(att.parsedJson.extractedFields.invoiceDate);
+              void bestEffortUploadToChroma(att.parsedJson.fullText, att.filename, d);
+              savedCount += 1;
+            } catch (persistErr) {
+              console.error(persistErr);
+            }
+          }
+        }
+        if (savedCount > 0) {
+          await recomputeAllTaxSummaries();
+          toast.success(`Saved ${savedCount} invoice${savedCount === 1 ? "" : "s"} locally — check Tax Passport & Ask 2ASK.`);
         }
 
         setDocuments(extractedDocuments);
@@ -512,6 +555,27 @@ export default function GmailExtractor() {
           )}
         </div>
       </div>
+
+      {persistedTransactions.length > 0 && (
+        <div className="mt-6 border-t border-white/10 pt-4">
+          <p className="text-xs text-gray-400 uppercase tracking-wide mb-3">
+            Previously extracted ({persistedTransactions.length} transactions)
+          </p>
+          <div className="space-y-2">
+            {persistedTransactions.map(t => (
+              <div key={t.id} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+                <div>
+                  <p className="text-sm font-medium">{t.vendor}</p>
+                  <p className="text-xs text-gray-400">{t.date} · {t.category}</p>
+                </div>
+                <p className={`text-sm font-semibold ${t.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {t.amount > 0 ? '+' : ''}₹{Math.abs(t.amount).toLocaleString('en-IN')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

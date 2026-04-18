@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion';
 import type { Transaction, TransactionCategory } from '@/lib/types';
-import { Badge } from '@/components/ui/badge';
 import { 
   ArrowUpRight, 
   ArrowDownLeft, 

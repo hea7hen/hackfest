@@ -108,7 +108,7 @@ REGEX_PATTERNS: list[tuple[str, str, str]] = [
     (r'otp\s*[:=\s]\s*\d{4,8}',                          "[REDACTED:OTP_PIN]",     "OTP"),
     (r'\b\d{9}\b',                                        "[REDACTED:BANK_ACCOUNT]","Bank account (9-digit)"),
     (r'\b\d{11}\b',                                       "[REDACTED:BANK_ACCOUNT]","Bank account (11-digit)"),
-    (r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.(in|co\.in|net|org)(?<!\b(aws|amazon|google|microsoft|razorpay|zoho|stripe|zoom|adobe)\b)', "[REDACTED:EMAIL]", "Personal .in email"),
+    (r'\b[A-Za-z0-9._%+-]+@(?!(?:aws|amazon|google|microsoft|razorpay|zoho|stripe|zoom|adobe)\.)[A-Za-z0-9.-]+\.(?:in|co\.in|net|org)\b', "[REDACTED:EMAIL]", "Personal .in email"),
     (r'\b[A-Z][0-9]{7}\b',                               "[REDACTED:PASSPORT]",    "Passport number"),
 ]
 

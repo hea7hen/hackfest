@@ -111,7 +111,7 @@ async def health():
 
     try:
         import chromadb
-        client = chromadb.PersistentClient(path="./chroma_db")
+        client = chromadb.PersistentClient(path=os.path.join(os.path.dirname(__file__), "chroma_db"))
         client.list_collections()
         chroma_ok = True
     except Exception:

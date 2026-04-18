@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { useGoogleLogin } from "@react-oauth/google";
 import { toast } from "sonner";
 import { GoogleLogo, FilePdf, WarningCircle } from "@phosphor-icons/react";
@@ -14,6 +15,7 @@ import {
   persistGmailPdfToDexie,
 } from "@/lib/gmailPersist";
 import { db } from "@/lib/db/schema";
+import type { GmailImportRecord } from "@/lib/types";
 
 type GmailHeader = {
   name?: string;
@@ -72,6 +74,8 @@ type ParsedGmailDocument = {
   attachments: ParsedPdfAttachment[];
 };
 
+const GMAIL_SELECTED_ATTACHMENT_KEY = "2ask:gmail-selected-attachment";
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Failed to extract PDF data";
 }
@@ -127,6 +131,51 @@ function createPdfObjectUrl(base64Data: string, mimeType: string) {
   return URL.createObjectURL(blob);
 }
 
+function revokeDocumentUrls(documents: ParsedGmailDocument[]) {
+  documents.forEach((document) => {
+    document.attachments.forEach((attachment) => {
+      if (attachment.objectUrl) {
+        URL.revokeObjectURL(attachment.objectUrl);
+      }
+    });
+  });
+}
+
+function serializeDocumentsForStorage(documents: ParsedGmailDocument[]): GmailImportRecord[] {
+  return documents.map((document) => ({
+    messageId: document.messageId,
+    threadId: document.threadId,
+    subject: document.subject,
+    from: document.from,
+    snippet: document.snippet,
+    receivedAt: document.receivedAt,
+    processedAt: new Date().toISOString(),
+    attachments: document.attachments.map((attachment) => ({
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      attachmentId: attachment.attachmentId,
+      size: attachment.size,
+      base64Data: attachment.base64Data,
+      parsedJson: attachment.parsedJson,
+    })),
+  }));
+}
+
+function restoreStoredDocuments(records: GmailImportRecord[]): ParsedGmailDocument[] {
+  return records.map((record) => ({
+    messageId: record.messageId,
+    threadId: record.threadId,
+    subject: record.subject,
+    from: record.from,
+    snippet: record.snippet,
+    receivedAt: record.receivedAt,
+    attachments: record.attachments.map((attachment) => ({
+      ...attachment,
+      objectUrl: createPdfObjectUrl(attachment.base64Data, attachment.mimeType),
+    })),
+  }));
+}
+
 async function fetchJson<T>(url: string, accessToken: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
@@ -156,22 +205,35 @@ async function fetchJson<T>(url: string, accessToken: string): Promise<T> {
 }
 
 export default function GmailExtractor() {
-  const [documents, setDocuments] = useState<ParsedGmailDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
-  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
-  const [persistedTransactions, setPersistedTransactions] = useState<any[]>([]);
+  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.sessionStorage.getItem(GMAIL_SELECTED_ATTACHMENT_KEY);
+  });
+  const persistedTransactions = useLiveQuery(
+    () => db.transactions.where("source").equals("gmail").reverse().limit(20).toArray(),
+    []
+  );
+  const persistedImports = useLiveQuery(
+    () => db.gmailImports.orderBy("processedAt").reverse().toArray(),
+    []
+  );
+
+  const documents = useMemo(
+    () => restoreStoredDocuments(persistedImports ?? []),
+    [persistedImports]
+  );
 
   useEffect(() => {
-    db.transactions
-      .where("source")
-      .equals("gmail")
-      .reverse()
-      .limit(20)
-      .toArray()
-      .then(setPersistedTransactions);
-  }, []);
+    if (typeof window === "undefined") return;
+    if (selectedAttachmentId) {
+      window.sessionStorage.setItem(GMAIL_SELECTED_ATTACHMENT_KEY, selectedAttachmentId);
+      return;
+    }
+    window.sessionStorage.removeItem(GMAIL_SELECTED_ATTACHMENT_KEY);
+  }, [selectedAttachmentId]);
 
   const jsonOutput = useMemo(() => JSON.stringify(documents, null, 2), [documents]);
   const allAttachments = useMemo(
@@ -191,13 +253,7 @@ export default function GmailExtractor() {
 
   useEffect(() => {
     return () => {
-      documents.forEach((document) => {
-        document.attachments.forEach((attachment) => {
-          if (attachment.objectUrl) {
-            URL.revokeObjectURL(attachment.objectUrl);
-          }
-        });
-      });
+      revokeDocumentUrls(documents);
     };
   }, [documents]);
 
@@ -217,7 +273,8 @@ export default function GmailExtractor() {
         );
 
         if (!messageList.messages?.length) {
-          setDocuments([]);
+          await db.gmailImports.clear();
+          setSelectedAttachmentId(null);
           setError("No emails with PDF attachments were found in the fetched Gmail results.");
           return;
         }
@@ -291,6 +348,14 @@ export default function GmailExtractor() {
           });
         }
 
+        const persistedSnapshot = serializeDocumentsForStorage(extractedDocuments);
+        await db.transaction("rw", db.gmailImports, async () => {
+          await db.gmailImports.clear();
+          if (persistedSnapshot.length > 0) {
+            await db.gmailImports.bulkPut(persistedSnapshot);
+          }
+        });
+
         let savedCount = 0;
         for (const doc of extractedDocuments) {
           for (const att of doc.attachments) {
@@ -317,7 +382,6 @@ export default function GmailExtractor() {
           );
         }
 
-        setDocuments(extractedDocuments);
         setParseWarnings(parseErrors);
         setSelectedAttachmentId(extractedDocuments[0]?.attachments[0]?.attachmentId ?? null);
         if (!extractedDocuments.length) {
@@ -563,7 +627,7 @@ export default function GmailExtractor() {
         </div>
       </div>
 
-      {persistedTransactions.length > 0 && (
+      {(persistedTransactions?.length ?? 0) > 0 && (
         <div className="rounded-3xl border border-slate-100 bg-white p-6 md:p-8 shadow-sm">
           <div className="flex items-center justify-between mb-6 px-1">
             <div>
@@ -575,11 +639,11 @@ export default function GmailExtractor() {
               </p>
             </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-              {persistedTransactions.length} items
+              {persistedTransactions?.length ?? 0} items
             </span>
           </div>
           <div className="space-y-1">
-            {persistedTransactions.map((t) => (
+            {persistedTransactions?.map((t) => (
               <div
                 key={t.id}
                 className="flex items-center justify-between py-4 px-4 rounded-2xl border border-transparent hover:bg-slate-50 hover:border-slate-100 transition-colors"

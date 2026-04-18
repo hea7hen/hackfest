@@ -29,3 +29,7 @@ db.version(2).stores({
   gmailCache: 'messageId',
   gmailImports: 'messageId, receivedAt, processedAt',
 });
+
+db.version(3).stores({
+  transactions: 'id, monthYear, category, source, date, vendor, isTaxDeductible, documentType',
+});

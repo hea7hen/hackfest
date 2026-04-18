@@ -40,6 +40,15 @@ agent_knowledge/__pycache__/
 agent_knowledge/*.pyc
 agent_knowledge/chroma_db/
 agent_knowledge/.env
+hackfest/venv/
+hackfest/agent_knowledge/venv/
+hackfest/agent_knowledge/__pycache__/
+hackfest/agent_knowledge/chroma_db/
+hackfest/agent_knowledge/.env
+
+# Local database
+db.sqlite
+*.db
 
 # vercel
 .vercel
@@ -47,3 +56,4 @@ agent_knowledge/.env
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.DS_Store

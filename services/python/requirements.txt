@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pymupdf
+sentence-transformers
+llama-index-core
+numpy
+python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
+lancedb
+pytest
+pytest-asyncio
+pytest-mock

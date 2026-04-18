@@ -212,7 +212,7 @@ export default function GmailExtractor() {
       try {
         const parseErrors: string[] = [];
         const messageList = await fetchJson<GmailMessagesListResponse>(
-          "https://gmail.googleapis.com/gmail/v1/users/me/messages?q=has:attachment filename:pdf&maxResults=10",
+          "https://gmail.googleapis.com/gmail/v1/users/me/messages?q=has:attachment filename:pdf {invoice receipt bill payment order}&maxResults=10",
           tokenResponse.access_token
         );
 

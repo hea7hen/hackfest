@@ -26,13 +26,26 @@ from project_env import load_project_dotenv
 load_project_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
-CHROMA_PATH    = "./chroma_db"
+CHROMA_PATH    = os.path.join(os.path.dirname(__file__), "chroma_db")
 EMBED_MODEL    = os.getenv("EMBED_MODEL", "text-embedding-nomic-embed-text-v1.5")
 LM_STUDIO_URL  = os.getenv("LM_STUDIO_URL",  "http://localhost:1234/v1")
 REASON_MODEL   = os.getenv("LM_STUDIO_MODEL","mlx-community/gemma-3-4b-it-4bit")
 COLLECTION_TAX = "tax_knowledge"
 COLLECTION_DOC = "user_documents"
 TOP_K          = 4
+TAX_KEYWORDS   = ("gst", "tax", "tds", "deduction", "deductible", "itc", "input credit", "rcm")
+DOC_KEYWORDS   = (
+    "receipt", "invoice", "document", "file", "pdf", "bill", "statement",
+    "mail", "gmail", "uploaded", "upload", "vendor", "from "
+)
+DB_KEYWORDS    = ("total", "spent", "sum", "breakdown", "category", "month", "highest", "lowest")
+AMOUNT_KEYWORDS = ("amount", "bill", "total", "how much", "invoice value", "price", "cost")
+COMMON_QUERY_WORDS = {
+    "what", "which", "when", "where", "who", "whom", "why", "how", "much", "many",
+    "is", "are", "was", "were", "do", "does", "did", "my", "the", "a", "an", "of",
+    "for", "to", "in", "on", "at", "by", "from", "show", "tell", "give", "find",
+    "about", "please", "me", "your"
+}
 
 # ── LM Studio client (OpenAI-compatible) ──────────────────────────────────────
 lm_client = OpenAI(
@@ -57,6 +70,57 @@ def embed(text: str) -> list[float]:
         input=text
     )
     return response.data[0].embedding
+
+
+def query_terms(text: str) -> list[str]:
+    terms = []
+    for token in re.findall(r"[a-z0-9]+", text.lower()):
+        if len(token) < 3 or token in COMMON_QUERY_WORDS:
+            continue
+        if token not in terms:
+            terms.append(token)
+    return terms
+
+
+def excerpt_for_question(question: str, document: str) -> str:
+    flat = re.sub(r"\s+", " ", document).strip()
+    q = question.lower()
+
+    if any(keyword in q for keyword in AMOUNT_KEYWORDS):
+        total_match = re.search(
+            r"(.{0,120}(grand total|total amount|amount due|net amount|invoice total).{0,180})",
+            flat,
+            re.IGNORECASE,
+        )
+        if total_match:
+            return total_match.group(1).strip()
+
+    for term in query_terms(question):
+        match = re.search(rf".{{0,120}}\b{re.escape(term)}\b.{{0,240}}", flat, re.IGNORECASE)
+        if match:
+            return match.group(0).strip()
+
+    return flat[:500]
+
+
+def score_document_match(question: str, document: str, metadata: dict, semantic_score: float) -> float:
+    combined = f"{metadata.get('filename', '')} {document}".lower()
+    q = question.lower()
+    score = semantic_score
+
+    for term in query_terms(question):
+        if re.search(rf"\b{re.escape(term)}\b", combined):
+            score += 0.45
+        elif term in combined:
+            score += 0.2
+
+    if any(keyword in q for keyword in AMOUNT_KEYWORDS):
+        if re.search(r"(grand total|total amount|amount due|net amount|invoice total)", combined):
+            score += 0.5
+        if re.search(r"(commercial invoice|invoice number|bill to)", combined):
+            score += 0.2
+
+    return score
 
 
 # ── chat() — now uses LM Studio ─────────────────────────────────────────────
@@ -128,22 +192,47 @@ def doc_search(state: AgentState) -> dict:
 
     results = collection.query(
         query_embeddings=[query_vec],
-        n_results=min(TOP_K, collection.count()),
+        n_results=min(max(TOP_K * 3, 8), collection.count()),
         include=["documents", "metadatas", "distances"]
     )
 
-    contexts = []
+    ranked_contexts = []
     for doc, meta, dist in zip(
         results["documents"][0],
         results["metadatas"][0],
         results["distances"][0]
     ):
-        contexts.append({
+        semantic_score = round(1 - dist, 3)
+        ranked_contexts.append({
             "source": f"Receipt: {meta.get('filename', 'Unknown')}",
             "section": meta.get("date", ""),
-            "text": doc,
-            "relevance": round(1 - dist, 3)
+            "text": excerpt_for_question(state["question"], doc),
+            "relevance": semantic_score,
+            "_raw_text": doc,
+            "_score": score_document_match(state["question"], doc, meta, semantic_score),
         })
+
+    ranked_contexts.sort(key=lambda context: context["_score"], reverse=True)
+
+    contexts = []
+    seen_keys = set()
+    for context in ranked_contexts:
+        dedupe_key = (
+            context["source"],
+            context["section"],
+            context["_raw_text"][:180],
+        )
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
+        contexts.append({
+            "source": context["source"],
+            "section": context["section"],
+            "text": context["text"],
+            "relevance": context["relevance"],
+        })
+        if len(contexts) >= TOP_K:
+            break
 
     return {"tool_contexts": contexts}
 
@@ -244,7 +333,7 @@ Given a user question, output ONLY a JSON object (no explanation) selecting the 
 
 Tools available:
 - "tax_lookup"  → Use for GST rates, TDS sections, advance tax rules, deductions (80C/80D/80G), Income Tax Act 2025, OIDAR, RCM, ITC eligibility
-- "doc_search"  → Use for questions about specific uploaded receipts, invoices, or documents ("which receipt...", "find the AWS invoice")
+- "doc_search"  → Use for questions about specific uploaded receipts, invoices, Gmail PDFs, or documents ("which receipt...", "find the AWS invoice", "what was in the invoice from...")
 - "db_query"    → Use for aggregated financial data: totals, category sums, highest spend, monthly breakdown
 
 Output format:
@@ -273,9 +362,15 @@ Q: Is my AWS spend eligible for ITC?                 → {"tool": "multi", "tool
 
     # Fallback heuristic
     q = state["question"].lower()
-    if any(kw in q for kw in ["receipt", "invoice", "upload", "document", "file"]):
+    has_doc_signal = any(kw in q for kw in DOC_KEYWORDS)
+    has_tax_signal = any(kw in q for kw in TAX_KEYWORDS)
+    has_db_signal = any(kw in q for kw in DB_KEYWORDS)
+
+    if has_doc_signal and (has_tax_signal or has_db_signal):
+        tool = "multi"
+    elif has_doc_signal:
         tool = "doc_search"
-    elif any(kw in q for kw in ["total", "spent", "sum", "breakdown", "category", "month", "highest", "lowest", "gst amount"]):
+    elif has_db_signal:
         tool = "db_query"
     else:
         tool = "tax_lookup"
@@ -293,12 +388,18 @@ def route_to_tool(state: AgentState) -> Literal["tax_lookup", "doc_search", "db_
 
 # ── Multi-tool node (runs two tools, merges contexts) ─────────────────────────
 def multi_tool(state: AgentState) -> dict:
-    """Run doc_search + db_query (or any combo), merge results."""
+    """Merge receipt/document context with summaries and tax rules when relevant."""
     all_contexts = []
-    # Always include tax_lookup for multi (most questions need tax context)
-    all_contexts.extend(tax_lookup(state)["tool_contexts"])
-    # Add db_query for financial data
-    all_contexts.extend(db_query(state)["tool_contexts"])
+    q = state["question"].lower()
+
+    all_contexts.extend(doc_search(state)["tool_contexts"])
+
+    if state.get("transactions"):
+        all_contexts.extend(db_query(state)["tool_contexts"])
+
+    if any(kw in q for kw in TAX_KEYWORDS):
+        all_contexts.extend(tax_lookup(state)["tool_contexts"])
+
     return {"tool_contexts": all_contexts}
 
 
@@ -316,7 +417,14 @@ def synthesize(state: AgentState) -> dict:
 You help with GST, TDS, advance tax, deductions, and expense management.
 Answer concisely and precisely. Use ₹ for amounts. Cite section numbers when relevant.
 If context is insufficient, say so honestly — never hallucinate tax rates or rules.
-Format answers with clear structure when listing multiple points."""
+Format answers with clear structure when listing multiple points.
+
+Important answering rules:
+- Answer the user's exact question, not everything found in the retrieved chunks.
+- For amount/bill/total questions, return only the most relevant final amount and the source document in 1-2 short sentences.
+- Prefer invoice-level totals or amount-due values over line-item amounts, ride fares, or unrelated nearby numbers.
+- If only line items are available for a single invoice and no total is explicitly shown, you may add them and state that you summed the line items.
+- Do not repeat raw context dumps, do not restate unrelated documents, and do not append a second "based on the documents" summary."""
 
     user = f"""User Question: {state['question']}
 

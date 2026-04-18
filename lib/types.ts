@@ -34,6 +34,41 @@ export interface Document {
   thumbnailDataUrl: string | null;
 }
 
+export interface GmailImportAttachment {
+  filename: string;
+  mimeType: string;
+  attachmentId: string;
+  size: number | null;
+  base64Data: string;
+  parsedJson: {
+    pageCount: number;
+    fullText: string;
+    lines: string[];
+    extractedFields: {
+      invoiceNumber: string | null;
+      invoiceDate: string | null;
+      dueDate: string | null;
+      amount: string | null;
+      taxAmount: string | null;
+      vendorName: string | null;
+      gstin: string | null;
+      pan: string | null;
+      poNumber: string | null;
+    };
+  };
+}
+
+export interface GmailImportRecord {
+  messageId: string;
+  threadId: string | null;
+  subject: string;
+  from: string;
+  snippet: string;
+  receivedAt: string | null;
+  processedAt: string;
+  attachments: GmailImportAttachment[];
+}
+
 export interface TaxSummary {
   monthYear: string;
   totalIncome: number;
@@ -52,6 +87,7 @@ export interface ChatMessage {
   language: Language;
   timestamp: string;
   isVoice: boolean;
+  toolUsed?: string;
 }
 
 export interface Insight {

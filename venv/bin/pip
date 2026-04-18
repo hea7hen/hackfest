@@ -1,4 +1,4 @@
-#!/Users/abhishek/Hackfest/hackfest/venv/bin/python3.14
+#!/Users/abhishek/hackfest_cfo/hackfest/venv/bin/python3.14
 import sys
 from pip._internal.cli.main import main
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { useGoogleLogin } from "@react-oauth/google";
 import { toast } from "sonner";
 import { GoogleLogo, FilePdf, WarningCircle } from "@phosphor-icons/react";
@@ -14,50 +15,7 @@ import {
   persistGmailPdfToDexie,
 } from "@/lib/gmailPersist";
 import { db } from "@/lib/db/schema";
-import type { Transaction } from "@/lib/types";
-
-const TOOL_VENDOR_RE =
-  /aws|amazon web|jetbrains|figma|github|cursor|notion|slack|zoom|adobe|microsoft|google cloud|digitalocean|vercel|netlify|openai|anthropic|stripe|linear|canva|miro/i;
-
-function gmailLedgerRowMeta(t: Transaction) {
-  const inv =
-    t.description.match(/\bINV[-\s]?[A-Z0-9.-]+\b/i)?.[0]?.replace(/\s+/g, "") ??
-    t.aiReasoning.match(/Invoice\s*#?\s*([A-Z0-9\-/]+)/i)?.[1] ??
-    null;
-  const isUtility = t.category === "utilities";
-  const isTool =
-    TOOL_VENDOR_RE.test(t.vendor || "") || TOOL_VENDOR_RE.test(t.description || "");
-  type RowKind = "client" | "tooling" | "utility" | "other";
-  let kind: RowKind = "other";
-  if (isUtility) kind = "utility";
-  else if (isTool) kind = "tooling";
-  else if (t.category === "business" && !isTool) kind = "client";
-
-  const kindLabel =
-    kind === "client"
-      ? "Client invoice"
-      : kind === "tooling"
-        ? "Stack & tooling"
-        : kind === "utility"
-          ? "Office / utilities"
-        : t.category;
-
-  const pillClass =
-    kind === "client"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-      : kind === "tooling"
-        ? "bg-violet-50 text-violet-700 border-violet-100"
-        : kind === "utility"
-          ? "bg-sky-50 text-sky-700 border-sky-100"
-          : "bg-slate-50 text-slate-600 border-slate-100";
-
-  const amountClass =
-    kind === "client" ? "text-emerald-600" : kind === "tooling" || kind === "utility" ? "text-slate-800" : "text-slate-900";
-
-  const amountPrefix = kind === "client" ? "+" : "";
-
-  return { inv, kindLabel, pillClass, amountClass, amountPrefix };
-}
+import type { GmailImportRecord } from "@/lib/types";
 
 type GmailHeader = {
   name?: string;
@@ -116,6 +74,8 @@ type ParsedGmailDocument = {
   attachments: ParsedPdfAttachment[];
 };
 
+const GMAIL_SELECTED_ATTACHMENT_KEY = "2ask:gmail-selected-attachment";
+
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Failed to extract PDF data";
 }
@@ -171,6 +131,51 @@ function createPdfObjectUrl(base64Data: string, mimeType: string) {
   return URL.createObjectURL(blob);
 }
 
+function revokeDocumentUrls(documents: ParsedGmailDocument[]) {
+  documents.forEach((document) => {
+    document.attachments.forEach((attachment) => {
+      if (attachment.objectUrl) {
+        URL.revokeObjectURL(attachment.objectUrl);
+      }
+    });
+  });
+}
+
+function serializeDocumentsForStorage(documents: ParsedGmailDocument[]): GmailImportRecord[] {
+  return documents.map((document) => ({
+    messageId: document.messageId,
+    threadId: document.threadId,
+    subject: document.subject,
+    from: document.from,
+    snippet: document.snippet,
+    receivedAt: document.receivedAt,
+    processedAt: new Date().toISOString(),
+    attachments: document.attachments.map((attachment) => ({
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      attachmentId: attachment.attachmentId,
+      size: attachment.size,
+      base64Data: attachment.base64Data,
+      parsedJson: attachment.parsedJson,
+    })),
+  }));
+}
+
+function restoreStoredDocuments(records: GmailImportRecord[]): ParsedGmailDocument[] {
+  return records.map((record) => ({
+    messageId: record.messageId,
+    threadId: record.threadId,
+    subject: record.subject,
+    from: record.from,
+    snippet: record.snippet,
+    receivedAt: record.receivedAt,
+    attachments: record.attachments.map((attachment) => ({
+      ...attachment,
+      objectUrl: createPdfObjectUrl(attachment.base64Data, attachment.mimeType),
+    })),
+  }));
+}
+
 async function fetchJson<T>(url: string, accessToken: string): Promise<T> {
   const response = await fetch(url, {
     headers: {
@@ -200,22 +205,35 @@ async function fetchJson<T>(url: string, accessToken: string): Promise<T> {
 }
 
 export default function GmailExtractor() {
-  const [documents, setDocuments] = useState<ParsedGmailDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
-  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
-  const [persistedTransactions, setPersistedTransactions] = useState<any[]>([]);
+  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.sessionStorage.getItem(GMAIL_SELECTED_ATTACHMENT_KEY);
+  });
+  const persistedTransactions = useLiveQuery(
+    () => db.transactions.where("source").equals("gmail").reverse().limit(20).toArray(),
+    []
+  );
+  const persistedImports = useLiveQuery(
+    () => db.gmailImports.orderBy("processedAt").reverse().toArray(),
+    []
+  );
+
+  const documents = useMemo(
+    () => restoreStoredDocuments(persistedImports ?? []),
+    [persistedImports]
+  );
 
   useEffect(() => {
-    db.transactions
-      .where("source")
-      .equals("gmail")
-      .reverse()
-      .limit(20)
-      .toArray()
-      .then(setPersistedTransactions);
-  }, []);
+    if (typeof window === "undefined") return;
+    if (selectedAttachmentId) {
+      window.sessionStorage.setItem(GMAIL_SELECTED_ATTACHMENT_KEY, selectedAttachmentId);
+      return;
+    }
+    window.sessionStorage.removeItem(GMAIL_SELECTED_ATTACHMENT_KEY);
+  }, [selectedAttachmentId]);
 
   const jsonOutput = useMemo(() => JSON.stringify(documents, null, 2), [documents]);
   const allAttachments = useMemo(
@@ -235,13 +253,7 @@ export default function GmailExtractor() {
 
   useEffect(() => {
     return () => {
-      documents.forEach((document) => {
-        document.attachments.forEach((attachment) => {
-          if (attachment.objectUrl) {
-            URL.revokeObjectURL(attachment.objectUrl);
-          }
-        });
-      });
+      revokeDocumentUrls(documents);
     };
   }, [documents]);
 
@@ -261,7 +273,8 @@ export default function GmailExtractor() {
         );
 
         if (!messageList.messages?.length) {
-          setDocuments([]);
+          await db.gmailImports.clear();
+          setSelectedAttachmentId(null);
           setError("No emails with PDF attachments were found in the fetched Gmail results.");
           return;
         }
@@ -335,6 +348,14 @@ export default function GmailExtractor() {
           });
         }
 
+        const persistedSnapshot = serializeDocumentsForStorage(extractedDocuments);
+        await db.transaction("rw", db.gmailImports, async () => {
+          await db.gmailImports.clear();
+          if (persistedSnapshot.length > 0) {
+            await db.gmailImports.bulkPut(persistedSnapshot);
+          }
+        });
+
         let savedCount = 0;
         for (const doc of extractedDocuments) {
           for (const att of doc.attachments) {
@@ -361,7 +382,6 @@ export default function GmailExtractor() {
           );
         }
 
-        setDocuments(extractedDocuments);
         setParseWarnings(parseErrors);
         setSelectedAttachmentId(extractedDocuments[0]?.attachments[0]?.attachmentId ?? null);
         if (!extractedDocuments.length) {
@@ -607,56 +627,42 @@ export default function GmailExtractor() {
         </div>
       </div>
 
-      {persistedTransactions.length > 0 && (
+      {(persistedTransactions?.length ?? 0) > 0 && (
         <div className="rounded-3xl border border-slate-100 bg-white p-6 md:p-8 shadow-sm">
           <div className="flex items-center justify-between mb-6 px-1">
             <div>
               <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">
-                Freelancer inbox
+                Ledger
               </h3>
               <p className="text-lg font-black tracking-tight text-slate-900">
-                Client invoices & stack costs (Gmail PDFs)
-              </p>
-              <p className="text-xs text-slate-500 font-medium mt-1 max-w-xl">
-                Rows mirror tax invoices and tool bills you pulled from email—client settlements read as revenue;
-                SaaS and utilities read as operating spend.
+                Previously imported from Gmail
               </p>
             </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 shrink-0">
-              {persistedTransactions.length} docs
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+              {persistedTransactions?.length ?? 0} items
             </span>
           </div>
-          <div className="space-y-2">
-            {persistedTransactions.map((t) => {
-              const meta = gmailLedgerRowMeta(t);
-              const sub = [meta.inv, new Date(t.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })]
-                .filter(Boolean)
-                .join(" · ");
-              return (
-                <div
-                  key={t.id}
-                  className="flex items-start justify-between gap-4 py-4 px-4 rounded-2xl border border-slate-100 bg-slate-50/40 hover:bg-white hover:shadow-sm transition-all"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <p className="text-sm font-bold text-slate-900 truncate">{t.vendor}</p>
-                      <span
-                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${meta.pillClass}`}
-                      >
-                        {meta.kindLabel}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 font-medium line-clamp-2">{t.description}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide mt-1">{sub}</p>
-                  </div>
-                  <p
-                    className={`text-sm font-black tabular-nums shrink-0 text-right ${meta.amountClass}`}
-                  >
-                    {`${meta.amountPrefix}\u20B9${Math.abs(t.amount).toLocaleString("en-IN")}`}
+          <div className="space-y-1">
+            {persistedTransactions?.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between py-4 px-4 rounded-2xl border border-transparent hover:bg-slate-50 hover:border-slate-100 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">{t.vendor}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {t.date} · {t.category}
                   </p>
                 </div>
-              );
-            })}
+                <p
+                  className={`text-sm font-black tabular-nums shrink-0 ml-4 ${
+                    t.amount > 0 ? "text-emerald-600" : "text-rose-600"
+                  }`}
+                >
+                  {`${t.amount > 0 ? "+" : ""}\u20B9${Math.abs(t.amount).toLocaleString("en-IN")}`}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}

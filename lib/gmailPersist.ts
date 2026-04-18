@@ -100,7 +100,7 @@ export async function bestEffortUploadToChroma(fullText: string, filename: strin
   try {
     const { uploadDocument } = await import('@/lib/backend');
     await uploadDocument(fullText, filename, date, 'invoice');
-  } catch {
-    // Backend optional for local-only demo
+  } catch (error) {
+    console.warn(`Chroma upload skipped for ${filename}`, error);
   }
 }

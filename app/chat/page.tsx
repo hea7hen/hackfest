@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Send, Loader2, Database, BookOpen, BarChart3 } from 'lucide-react';
 import { askAgent, type Transaction } from '@/lib/backend';
 import { db } from '@/lib/db/schema';
+import type { ChatMessage } from '@/lib/types';
 
 interface Message {
   id: string;
@@ -29,29 +31,62 @@ const QUICK_QUESTIONS = [
   "Is AWS eligible for ITC?",
 ];
 
+const CHAT_DRAFT_KEY = '2ask:chat-draft';
+const WELCOME_MESSAGE: ChatMessage = {
+  id: 'welcome',
+  role: 'assistant',
+  content: "Hi! I'm 2ASK, your AI finance agent. I can answer questions about your transactions, GST rates, TDS rules, and tax deductions. What would you like to know?",
+  language: 'en-IN',
+  timestamp: new Date(0).toISOString(),
+  isVoice: false,
+};
+
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '0',
-      role: 'assistant',
-      content: 'Hi! I\'m 2ASK, your AI finance agent. I can answer questions about your transactions, GST rates, TDS rules, and tax deductions. What would you like to know?',
-      timestamp: new Date(),
-    }
-  ]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return window.sessionStorage.getItem(CHAT_DRAFT_KEY) ?? '';
+  });
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const storedMessages = useLiveQuery(() => db.chatMessages.orderBy('timestamp').toArray(), []);
+
+  const messages = useMemo<Message[]>(() => {
+    const sourceMessages = storedMessages && storedMessages.length > 0
+      ? storedMessages
+      : [WELCOME_MESSAGE];
+
+    return sourceMessages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      tool_used: message.toolUsed,
+      timestamp: new Date(message.timestamp),
+    }));
+  }, [storedMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    const initializeChat = async () => {
+      const count = await db.chatMessages.count();
+      if (count === 0) {
+        await db.chatMessages.put(WELCOME_MESSAGE);
+      }
+    };
+
+    void initializeChat();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem(CHAT_DRAFT_KEY, input);
+  }, [input]);
+
   async function getTransactions(): Promise<Transaction[]> {
     try {
-      const monthYear = new Date().toISOString().slice(0, 7);
-      const txns = await db.transactions
-        .where('monthYear').equals(monthYear)
-        .toArray();
+      const txns = await db.transactions.toArray();
       return txns.map(t => ({
         id:          t.id,
         vendor:      t.vendor ?? '',
@@ -70,34 +105,43 @@ export default function ChatPage() {
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
     setInput('');
+    const userMessageId = crypto.randomUUID();
+    const assistantMessageId = crypto.randomUUID();
+    const userTimestamp = new Date();
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
+    const userMsg: ChatMessage = {
+      id: userMessageId,
       role: 'user',
       content: text,
-      timestamp: new Date(),
+      language: 'en-IN',
+      timestamp: userTimestamp.toISOString(),
+      isVoice: false,
     };
-    setMessages(prev => [...prev, userMsg]);
+    await db.chatMessages.put(userMsg);
     setLoading(true);
 
     try {
       const transactions = await getTransactions();
       const { answer, tool_used } = await askAgent(text, transactions);
 
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
+      await db.chatMessages.put({
+        id: assistantMessageId,
         role: 'assistant',
         content: answer,
-        tool_used,
-        timestamp: new Date(),
-      }]);
+        toolUsed: tool_used,
+        language: 'en-IN',
+        timestamp: new Date().toISOString(),
+        isVoice: false,
+      });
     } catch {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
+      await db.chatMessages.put({
+        id: assistantMessageId,
         role: 'assistant',
         content: 'Backend not reachable. Make sure uvicorn is running on port 8000.',
-        timestamp: new Date(),
-      }]);
+        language: 'en-IN',
+        timestamp: new Date().toISOString(),
+        isVoice: false,
+      });
     } finally {
       setLoading(false);
     }

@@ -29,6 +29,11 @@ export default function TaxPassportPage() {
   const totalDeduct   = sum(deductibles);
   const estSavings    = Math.round(totalDeduct * 0.3);
 
+  const today = new Date();
+  const fyStartYear =
+    today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+  const fiscalYear = `FY ${fyStartYear}-${String(fyStartYear + 1).slice(-2)}`;
+
   const metrics = [
     { label: 'Total Income',          value: `₹${totalIncome.toLocaleString('en-IN')}`,  color: 'text-green-600' },
     { label: 'TDS Deducted',          value: `₹${totalTds.toLocaleString('en-IN')}`,     color: 'text-orange-500' },
@@ -46,10 +51,6 @@ export default function TaxPassportPage() {
           <Shield size={24} className="text-blue-600" />
         </div>
         <div>
-          const today = new Date();
-          const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
-          const fiscalYear = `FY ${fyStartYear}-${String(fyStartYear + 1).slice(-2)}`;
-
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Tax Passport</h1>
           <p className="text-sm text-slate-500 font-medium">
             Based on {transactions.length} transactions · {fiscalYear} · Fiscal Intelligence

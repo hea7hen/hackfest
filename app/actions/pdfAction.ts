@@ -8,6 +8,27 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Failed to parse PDF";
 }
 
+/** Gmail attachment bodies use base64url, often without `=` padding. */
+function decodeGmailAttachmentBase64(data: string): Buffer {
+  const trimmed = data.trim().replace(/\s/g, "");
+  let b64 = trimmed.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4;
+  if (pad) {
+    b64 += "=".repeat(4 - pad);
+  }
+  return Buffer.from(b64, "base64");
+}
+
+/** Some transports prepend bytes before the PDF file marker. */
+function bufferStartingAtPdfMarker(buf: Buffer): Buffer {
+  const marker = Buffer.from("%PDF");
+  const idx = buf.indexOf(marker);
+  if (idx <= 0) {
+    return buf;
+  }
+  return buf.subarray(idx);
+}
+
 export type ParsedPdfFields = {
   invoiceNumber: string | null;
   invoiceDate: string | null;
@@ -78,9 +99,21 @@ function extractPdfFields(text: string): ParsedPdfFields {
 
 export async function parseInvoicePdf(base64Data: string) {
   try {
-    const base64 = base64Data.replace(/-/g, "+").replace(/_/g, "/");
-    const buffer = Buffer.from(base64, "base64");
-    
+    const buffer = bufferStartingAtPdfMarker(decodeGmailAttachmentBase64(base64Data));
+
+    if (buffer.length < 8) {
+      return { success: false, error: "Attachment decoded to empty or truncated data." };
+    }
+
+    const head = buffer.subarray(0, Math.min(8, buffer.length)).toString("latin1");
+    if (!head.startsWith("%PDF")) {
+      return {
+        success: false,
+        error:
+          "Decoded bytes are not a PDF (missing %PDF header). The file may be corrupt, encrypted, or not a real PDF attachment.",
+      };
+    }
+
     // Natively extract using the rock-solid pdf-parse library
     // This avoids python subprocess issues and Next.js turbopack worker errors completely.
     const extracted = await pdfParse(buffer);

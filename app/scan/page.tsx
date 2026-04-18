@@ -124,7 +124,7 @@ export default function ScanPage() {
           Gmail Smart Intelligence
         </p>
         <p className="text-xs text-slate-600 font-medium leading-relaxed">
-          The extraction engine is currently bypassing authentication for this workshop.
+          This workshop uses simulated inbox data to demonstrate the extraction flow.
           Extracted JSON from your simulated inbox will flow directly into this secure processor.
         </p>
       </div>

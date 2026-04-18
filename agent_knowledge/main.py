@@ -14,7 +14,7 @@ import os
 import re
 import sys
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 import requests
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -93,6 +93,70 @@ class ReceiptExtractResponse(BaseModel):
     description: str
     itc_eligible: bool
     raw_text:    str
+
+
+def _coerce_float(val: Any, default: float = 0.0) -> float:
+    if val is None:
+        return default
+    if isinstance(val, bool):
+        return float(int(val))
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = re.sub(r"[₹,\s]", "", str(val).strip())
+    if not s:
+        return default
+    try:
+        return float(s)
+    except ValueError:
+        return default
+
+
+def _coerce_bool(val: Any) -> bool:
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        s = val.strip().lower()
+        if s in ("false", "0", "no", "n"):
+            return False
+        return s in ("true", "1", "yes", "y")
+    return bool(val)
+
+
+def _extract_json_object(s: str) -> Optional[str]:
+    """Find a balanced {...} substring when the model adds prose around JSON."""
+    start = s.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    for i, ch in enumerate(s[start:], start):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return s[start : i + 1]
+    return None
+
+
+def normalize_llm_receipt_dict(parsed: Any, raw_text: str) -> dict[str, Any]:
+    """LLMs often return strings for numbers or omit keys — coerce before Pydantic."""
+    if isinstance(parsed, list) and len(parsed) > 0:
+        parsed = parsed[0]
+    if not isinstance(parsed, dict):
+        parsed = {}
+
+    return {
+        "vendor": str(parsed.get("vendor") or "Unknown")[:500],
+        "amount": _coerce_float(parsed.get("amount")),
+        "gst_amount": _coerce_float(parsed.get("gst_amount")),
+        "gst_rate": _coerce_float(parsed.get("gst_rate")),
+        "date": str(parsed.get("date") or "")[:32],
+        "category": str(parsed.get("category") or "Other")[:120],
+        "sac_code": str(parsed.get("sac_code") or "")[:32],
+        "description": str(parsed.get("description") or "")[:2000],
+        "itc_eligible": _coerce_bool(parsed.get("itc_eligible", True)),
+        "raw_text": raw_text,
+    }
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -186,7 +250,13 @@ async def analyze_receipt(file: UploadFile = File(...)):
     The frontend can then store this JSON in IndexedDB.
     """
     content  = await file.read()
-    raw_text = content.decode("utf-8", errors="replace")
+    raw_text = content.decode("utf-8", errors="replace").strip()
+
+    if len(raw_text) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="No readable text in upload. For PDFs, ensure the file has a text layer (not scan-only); try another export.",
+        )
 
     system_prompt = """You are a receipt parser for an Indian freelancer finance app.
 Extract structured data from the receipt text provided.
@@ -212,12 +282,13 @@ GST rates: Cloud/Software/Workspace/Telecom/Marketing = 18%, Food = 5%, Transpor
 Common SAC codes: Cloud=998315, Software=998314, Marketing=998361, Workspace=997212, Telecom=998412, Food=9963, Transport=9964
 """
 
+    llm_output = None
     try:
         response = lm_client.chat.completions.create(
             model=LM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": f"Receipt text:\n{raw_text}"}
+                {"role": "user",   "content": f"Receipt text:\n{raw_text[:24000]}"}
             ],
             temperature=0.0,
             max_tokens=512,
@@ -226,14 +297,28 @@ Common SAC codes: Cloud=998315, Software=998314, Marketing=998361, Workspace=997
 
         # Strip markdown fences if present
         clean = re.sub(r"```json|```", "", llm_output or "").strip()
+        if not clean.startswith("{"):
+            extracted = _extract_json_object(clean)
+            if extracted:
+                clean = extracted
+
         parsed = json.loads(clean)
+        normalized = normalize_llm_receipt_dict(parsed, raw_text)
+        return ReceiptExtractResponse(**normalized)
 
-        return ReceiptExtractResponse(**parsed, raw_text=raw_text)
-
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=422, detail="LLM returned invalid JSON for receipt.")
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"LLM returned invalid JSON for receipt. Raw (truncated): {(llm_output or '')[:400]!r} — {e!s}",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Receipt analysis failed: {str(e)}")
+        err = str(e)
+        if "Connection" in err or "refused" in err.lower() or "ConnectError" in err:
+            raise HTTPException(
+                status_code=503,
+                detail="LM Studio unreachable. Start LM Studio (or set LM_STUDIO_URL) and load a chat model matching LM_STUDIO_MODEL in .env.",
+            )
+        raise HTTPException(status_code=500, detail=f"Receipt analysis failed: {err}")
 
 
 @app.post("/batch-analyze")

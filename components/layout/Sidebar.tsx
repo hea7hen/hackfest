@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   SquaresFour, 
-  Camera, 
   ChatCircleText, 
   Files, 
+  Receipt,
+  Calendar,
   CaretLeft, 
   CaretRight, 
   Cpu
@@ -16,7 +17,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: SquaresFour },
-  { href: '/scan', label: 'Scan Document', icon: Camera },
+  { href: '/planning', label: 'Planning', icon: Calendar },
+  { href: '/invoice-analyzer', label: 'Invoice Analyzer', icon: Receipt },
   { href: '/chat', label: 'Ask 2ASK', icon: ChatCircleText },
   { href: '/tax-passport', label: 'Tax Passport', icon: Files },
 ];

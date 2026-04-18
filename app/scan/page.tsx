@@ -95,68 +95,72 @@ export default function ScanPage() {
   const detailKeys = ['vendor', 'amount', 'gst_amount', 'category', 'date', 'sac_code'] as const;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
+    <div className="max-w-2xl mx-auto p-6 space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-[#F0F4FF]">Scan Document</h1>
-        <p className="text-sm text-[#8899AA] mt-1">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Scan Document</h1>
+        <p className="text-sm text-slate-500 mt-2 font-medium">
           Upload receipt text files. AI extracts vendor, amount, GST, and stores securely.
         </p>
       </div>
 
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-colors ${
+        className={`border-2 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-300 ${
           isDragActive
-            ? 'border-blue-500 bg-blue-500/10'
-            : 'border-white/[0.12] hover:border-white/25'
+            ? 'border-blue-500 bg-blue-50/50 shadow-inner'
+            : 'border-slate-200 bg-white hover:border-blue-400 hover:shadow-lg hover:shadow-slate-200/50'
         }`}
       >
         <input {...getInputProps()} />
-        <Upload size={32} className="mx-auto mb-3 text-[#8899AA]" />
-        <p className="text-sm font-medium text-[#F0F4FF]">Drop receipt files here or click to browse</p>
-        <p className="text-xs text-[#8899AA] mt-1">Supports .txt and .json files</p>
+        <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100">
+          <Upload size={28} className="text-blue-600" />
+        </div>
+        <p className="text-sm font-bold text-slate-900">Drop receipt files here or click to browse</p>
+        <p className="text-xs text-slate-400 mt-1 font-medium">Supports .txt and .json files</p>
       </div>
 
-      <div className="rounded-xl bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 p-4">
-        <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
-          Gmail PDF extraction
+      <div className="rounded-2xl bg-blue-50/50 border border-blue-100 p-5 shadow-sm">
+        <p className="text-xs font-black uppercase tracking-widest text-blue-600 mb-2">
+          Gmail Smart Intelligence
         </p>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-          Use the &quot;Open Gmail JSON&quot; button on the Dashboard to extract PDFs directly from your inbox.
-          Extracted text is automatically sent here for processing.
+        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+          The extraction engine is currently bypassing authentication for this workshop.
+          Extracted JSON from your simulated inbox will flow directly into this secure processor.
         </p>
       </div>
 
       {files.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-[#8899AA] uppercase tracking-wide">
-            Processed ({files.length})
+        <div className="space-y-4">
+          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+            Processed Ledger ({files.length})
           </h2>
           {files.map(f => (
-            <div key={f.id} className="rounded-xl border border-white/[0.08] bg-[#131929]/50 p-4">
+            <div key={f.id} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
-                <FileText size={16} className="text-[#8899AA] shrink-0" />
-                <span className="text-sm font-medium flex-1 truncate text-[#F0F4FF]">{f.name}</span>
-                {f.status === 'processing' && <Loader2 size={16} className="animate-spin text-blue-500" />}
-                {f.status === 'done'       && <CheckCircle size={16} className="text-green-500" />}
-                {f.status === 'error'      && <AlertCircle size={16} className="text-red-500" />}
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
+                  <FileText size={16} className="text-slate-400 shrink-0" />
+                </div>
+                <span className="text-sm font-bold flex-1 truncate text-slate-900">{f.name}</span>
+                {f.status === 'processing' && <Loader2 size={16} className="animate-spin text-blue-600" />}
+                {f.status === 'done'       && <CheckCircle size={18} className="text-emerald-500" />}
+                {f.status === 'error'      && <AlertCircle size={18} className="text-rose-500" />}
               </div>
 
               {f.status === 'done' && f.extracted && (
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
                   {detailKeys
                     .filter(k => f.extracted![k] !== undefined)
                     .map(k => (
-                      <div key={k} className="bg-[#0A0F1E] rounded-lg p-2 border border-white/[0.06]">
-                        <span className="text-[#8899AA] capitalize">{k.replace('_', ' ')}</span>
-                        <p className="font-medium mt-0.5 text-[#F0F4FF]">{String(f.extracted![k])}</p>
+                      <div key={k} className="bg-slate-50 rounded-xl p-3 border border-slate-100/50">
+                        <span className="text-slate-400 font-bold uppercase tracking-wide text-[9px] block mb-1">{k.replace('_', ' ')}</span>
+                        <p className="font-black text-slate-900">{String(f.extracted![k])}</p>
                       </div>
                     ))}
                 </div>
               )}
 
               {f.status === 'error' && (
-                <p className="text-xs text-red-500 mt-2">{f.error}</p>
+                <p className="text-xs text-rose-600 mt-2 font-medium px-1">{f.error}</p>
               )}
             </div>
           ))}

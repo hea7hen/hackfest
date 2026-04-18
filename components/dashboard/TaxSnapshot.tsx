@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Receipt, IndianRupee, FileCheck, PiggyBank } from 'lucide-react';
+import { Receipt, Coins, ShieldCheck, PiggyBank, ArrowRight } from '@phosphor-icons/react';
 import type { TaxSummary } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useSpring, useTransform } from 'framer-motion';
@@ -36,61 +36,55 @@ export default function TaxSnapshot({ summaries }: Props) {
   );
 
   const cards = [
-    { label: 'TDS Deducted', value: totals.tdsDeducted, icon: Receipt, color: '#3B82F6' },
-    { label: 'GST Paid', value: totals.gstPaid, icon: IndianRupee, color: '#F59E0B' },
-    { label: 'Deductibles', value: totals.deductibleAmount, icon: FileCheck, color: '#10B981' },
-    { label: 'Est. Savings', value: totals.estimatedSavings, icon: PiggyBank, color: '#8B5CF6' },
+    { label: 'TDS Deducted', value: totals.tdsDeducted, icon: Receipt, color: '#2563EB' },
+    { label: 'GST Accrued', value: totals.gstPaid, icon: Coins, color: '#F59E0B' },
+    { label: 'Deductibles', value: totals.deductibleAmount, icon: ShieldCheck, color: '#10B981' },
+    { label: 'Est. Savings', value: totals.estimatedSavings, icon: PiggyBank, color: '#7C3AED' },
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.35 }}
-      className="rounded-2xl p-6"
-      style={{
-        background: '#131929',
-        border: '1px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
-      }}
-    >
-      <h3 className="text-sm font-medium mb-4" style={{ color: '#8899AA' }}>
-        Tax Snapshot
-      </h3>
+    <div className="bento-card h-full flex flex-col">
+      <div className="flex items-center justify-between mb-8 px-2">
+        <div>
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600 mb-1">
+            Fiscal Overview
+          </h3>
+          <p className="text-2xl font-black tracking-tight text-slate-900">Tax Passport</p>
+        </div>
+        <button className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center hover:bg-white hover:shadow-md transition-all">
+          <ArrowRight weight="bold" size={16} className="text-slate-400" />
+        </button>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4 flex-1">
         {cards.map((card, i) => {
           const Icon = card.icon;
           return (
             <motion.div
               key={card.label}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: 0.4 + i * 0.05 }}
-              className="rounded-xl p-4"
-              style={{
-                background: '#0A0F1E',
-                border: '1px solid rgba(255,255,255,0.04)',
-              }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 + i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white border border-slate-100 rounded-[1.5rem] p-5 flex flex-col justify-between group cursor-pointer hover:shadow-lg hover:shadow-slate-200/50 transition-all"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <div
-                  className="w-6 h-6 rounded-md flex items-center justify-center"
-                  style={{ background: `${card.color}15` }}
-                >
-                  <Icon size={12} style={{ color: card.color }} />
-                </div>
-                <span className="text-[11px]" style={{ color: '#8899AA' }}>
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center border border-slate-100 mb-3 group-hover:scale-110 transition-all"
+                style={{ background: `${card.color}08`, color: card.color }}
+              >
+                <Icon weight="duotone" size={18} />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1">
                   {card.label}
                 </span>
+                <span className="font-financial text-xl font-black tracking-tight text-slate-900">
+                  <AnimatedCurrency value={card.value} />
+                </span>
               </div>
-              <span className="font-financial text-lg" style={{ color: '#F0F4FF' }}>
-                <AnimatedCurrency value={card.value} />
-              </span>
             </motion.div>
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }
